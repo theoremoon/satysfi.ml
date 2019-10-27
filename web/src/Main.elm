@@ -72,5 +72,5 @@ subscriptions model =
 view : Model -> Browser.Document Msg
 view model =
     { title = "Hello World"
-    , body = [ div [] [ text "Hello World" ] ]
+    , body = [ div [] [ text "Hello from Elm" ] ]
     }
