@@ -14,8 +14,8 @@ html,body {
 
 .editor {
     width: 50%;
-    height: calc(100vh - 10px);
-    resize: none;
+    height: calc(100vh - 60px);
+    resize: horizontal;
 }
 .menu {
     width: 100%;

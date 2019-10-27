@@ -3,7 +3,7 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation
 import Html exposing (..)
-import Html.Attributes exposing (class, value)
+import Html.Attributes exposing (attribute, class, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Url exposing (Url)
@@ -30,7 +30,7 @@ main =
 
 type alias Model =
     { currentSource : String
-    , product : String
+    , product : Maybe String
     }
 
 
@@ -48,7 +48,7 @@ type Msg
 
 init : () -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ url navKey =
-    ( Model "" "<None is available>"
+    ( Model "" Nothing
     , Cmd.none
     )
 
@@ -67,10 +67,10 @@ update msg model =
             ( model, compileRequest model.currentSource )
 
         CompileResult (Result.Ok result) ->
-            ( { model | product = result }, Cmd.none )
+            ( { model | product = Just result }, Cmd.none )
 
         CompileResult (Result.Err _) ->
-            ( { model | product = "<Failed to Compile>" }, Cmd.none )
+            ( model, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -135,5 +135,13 @@ satysfiEditor attrs model =
 
 productViewer : List (Attribute Msg) -> Model -> Html Msg
 productViewer attrs model =
-    div attrs
-        [ text model.product ]
+    case model.product of
+        Just pdf ->
+            embed
+                (attrs
+                    ++ [ src ("data:application/pdf;base64," ++ pdf) ]
+                )
+                []
+
+        Nothing ->
+            div attrs [ text "Nothing there" ]

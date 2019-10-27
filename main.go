@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -24,12 +25,13 @@ func main() {
 	// handlers
 	e.Static("/", "web/dist")
 	e.POST("/compile", func(c echo.Context) error {
-		body, err := ioutil.ReadAll(c.Request().Body)
+		pdf, err := ioutil.ReadFile("sample.pdf")
 		if err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
+			return c.String(http.StatusInternalServerError, err.Error())
 		}
+		pdfb64 := base64.StdEncoding.EncodeToString(pdf)
 
-		return c.String(http.StatusOK, string(body))
+		return c.String(http.StatusOK, pdfb64)
 	})
 	// run
 	e.Logger.Fatal(e.Start(":" + port))
