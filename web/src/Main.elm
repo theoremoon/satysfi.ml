@@ -3,8 +3,9 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation
 import Html exposing (..)
-import Html.Attributes exposing (class)
-import Html.Events exposing (onClick)
+import Html.Attributes exposing (class, value)
+import Html.Events exposing (onClick, onInput)
+import Http
 import Url exposing (Url)
 
 
@@ -28,12 +29,17 @@ main =
 
 
 type alias Model =
-    {}
+    { currentSource : String
+    , product : String
+    }
 
 
 type Msg
     = OnUrlChange Url
     | OnUrlRequest Browser.UrlRequest
+    | CompileRequest
+    | CompileResult (Result Http.Error String)
+    | SourceUpdate String
 
 
 
@@ -42,7 +48,7 @@ type Msg
 
 init : () -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ url navKey =
-    ( Model
+    ( Model "" "<None is available>"
     , Cmd.none
     )
 
@@ -53,9 +59,34 @@ init _ url navKey =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model
-    , Cmd.none
-    )
+    case msg of
+        SourceUpdate newSource ->
+            ( { model | currentSource = newSource }, Cmd.none )
+
+        CompileRequest ->
+            ( model, compileRequest model.currentSource )
+
+        CompileResult (Result.Ok result) ->
+            ( { model | product = result }, Cmd.none )
+
+        CompileResult (Result.Err _) ->
+            ( { model | product = "<Failed to Compile>" }, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+
+-- CMDS
+
+
+compileRequest : String -> Cmd Msg
+compileRequest source =
+    Http.post
+        { url = "/compile"
+        , body = Http.stringBody "text/plain" source
+        , expect = Http.expectString CompileResult
+        }
 
 
 
@@ -79,17 +110,30 @@ view model =
             [ class "container"
             ]
             [ div [ class "menu" ]
-                [ button [] [ text "COMPILE" ]
+                [ button [ onClick CompileRequest ] [ text "COMPILE" ]
                 ]
             , div [ class "main" ]
                 [ satysfiEditor [] model
-                , div [ class "column" ] [ text "RIGHT" ]
+                , productViewer [] model
                 ]
             ]
         ]
     }
 
 
-satysfiEditor : List (Attribute msg) -> Model -> Html msg
-satysfiEditor attrs _ =
-    textarea (attrs ++ [ class "editor" ]) []
+satysfiEditor : List (Attribute Msg) -> Model -> Html Msg
+satysfiEditor attrs model =
+    textarea
+        (attrs
+            ++ [ class "editor"
+               , value model.currentSource
+               , onInput SourceUpdate
+               ]
+        )
+        []
+
+
+productViewer : List (Attribute Msg) -> Model -> Html Msg
+productViewer attrs model =
+    div attrs
+        [ text model.product ]
