@@ -1,17 +1,21 @@
 # SATySFi-Online
 (Work in Progress)
 
-SATySFiがOnlineで使えたら→→うれしい！！
+[SATySFi](https://github.com/gfngfn/SATySFi)がOnlineで使えたら→→うれしい！！
+
+## Screenshot
+
+![](docs/screenshot.png)
 
 ## Requirements
 
 - go 1.13
 - Elm 0.19.1
+- Docker >= 19.03
 
-## Dependencies
+## DevDependencies
 
 - GNU Make
-- Docker >= 19.03
 - yarn
 - [cespare/reflex](https://github.com/cespare/reflex)
 
@@ -63,4 +67,4 @@ theoremoon
 
 ## License
 
-Apache 2.0
+Apache 2.0 (SATySFiはLGPLだけど大丈夫かな……？)
