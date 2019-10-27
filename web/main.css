@@ -12,6 +12,9 @@ html,body {
     flex-direction: row;
 }
 
+.viewer {
+    flex: 1;
+}
 .editor {
     width: 50%;
     height: calc(100vh - 60px);

@@ -48,7 +48,20 @@ type Msg
 
 init : () -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ url navKey =
-    ( Model "" Nothing
+    ( Model """
+@require: stdjabook
+
+document (|
+  title = {Hello, World!};
+  author = {\\@theoremoon};
+  show-toc = false;
+  show-title = true;
+|) '<
+  +p {
+    Hello, World!
+  }
+>
+""" Nothing
     , Cmd.none
     )
 
@@ -139,7 +152,9 @@ productViewer attrs model =
         Just pdf ->
             embed
                 (attrs
-                    ++ [ src ("data:application/pdf;base64," ++ pdf) ]
+                    ++ [ src ("data:application/pdf;base64," ++ pdf)
+                       , class "viewer"
+                       ]
                 )
                 []
 
