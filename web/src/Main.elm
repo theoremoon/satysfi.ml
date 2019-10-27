@@ -2,7 +2,9 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation
-import Html exposing (div, text)
+import Html exposing (..)
+import Html.Attributes exposing (class)
+import Html.Events exposing (onClick)
 import Url exposing (Url)
 
 
@@ -72,5 +74,22 @@ subscriptions model =
 view : Model -> Browser.Document Msg
 view model =
     { title = "Hello World"
-    , body = [ div [] [ text "Hello from Elm" ] ]
+    , body =
+        [ div
+            [ class "container"
+            ]
+            [ div [ class "menu" ]
+                [ button [] [ text "COMPILE" ]
+                ]
+            , div [ class "main" ]
+                [ satysfiEditor [] model
+                , div [ class "column" ] [ text "RIGHT" ]
+                ]
+            ]
+        ]
     }
+
+
+satysfiEditor : List (Attribute msg) -> Model -> Html msg
+satysfiEditor attrs _ =
+    textarea (attrs ++ [ class "editor" ]) []

@@ -25,6 +25,6 @@ build-go: main.go
 .PHONY: build-web
 build-web: web/src/*.elm
 	cd web; \
-	elm make src/Main.elm --output=index.html
-
+	yarn;\
+	yarn run parcel build index.html;
 

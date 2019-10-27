@@ -1,10 +1,13 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 func main() {
@@ -14,7 +17,20 @@ func main() {
 	}
 
 	e := echo.New()
-	e.File("/", "web/index.html")
-	e.File("/hello", "web/index.html")
+
+	// middlewares
+	e.Use(middleware.Logger())
+
+	// handlers
+	e.Static("/", "web/dist")
+	e.POST("/compile", func(c echo.Context) error {
+		body, err := ioutil.ReadAll(c.Request().Body)
+		if err != nil {
+			return c.String(http.StatusBadRequest, err.Error())
+		}
+
+		return c.String(http.StatusOK, string(body))
+	})
+	// run
 	e.Logger.Fatal(e.Start(":" + port))
 }
