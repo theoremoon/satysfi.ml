@@ -1,16 +1,14 @@
 .PHONY: all
 all:
 	@cat Makefile | grep -E "^[A-Za-z0-9-]+:"
-# don't use in the docker because this command use docker-compose
 .PHONY: dev
 dev:
-	cd dev; docker-compose up --build
+	PORT=8888 reflex -g reflex.conf -s -- reflex -c reflex.conf
 
 .PHONY: release
 release:
 	docker-compose up --build
 
-# used in docker
 .PHONY: build
 build: build-web build-go
 
@@ -28,3 +26,7 @@ build-web: web/src/*.elm
 	yarn;\
 	yarn run parcel build index.html;
 
+.PHONY: build-satysfi
+build-satysfi:
+	cd SATySFi; \
+	docker build -t satysfi .
