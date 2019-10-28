@@ -108,6 +108,15 @@ func isFile(path string) bool {
 	}
 	return fi.Mode().IsRegular()
 }
+func verifyPath(path string) bool {
+	if strings.Contains(path, "../") {
+		return false
+	}
+	if strings.HasPrefix(path, ".git") {
+		return false
+	}
+	return true
+}
 
 func main() {
 	port := os.Getenv("PORT")
@@ -130,6 +139,27 @@ func main() {
 
 	// handlers
 	e.Static("/", "web/dist")
+	e.POST("/save", func(c echo.Context) error {
+		request := new(struct {
+			Path    string `json:"path"`
+			Content string `json:"content"`
+		})
+		if err := c.Bind(request); err != nil {
+			return c.String(http.StatusBadRequest, err.Error())
+		}
+		if !verifyPath(request.Path) {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
+		}
+		path := filepath.Join(app.WorkDir, request.Path)
+		if !isFile(path) {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
+		}
+
+		if err := ioutil.WriteFile(path, []byte(request.Content), 0); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+		}
+		return c.String(http.StatusOK, "")
+	})
 	e.POST("/compile", func(c echo.Context) error {
 		path := new(struct {
 			Path string `json:"path"`
@@ -138,11 +168,8 @@ func main() {
 			return c.String(http.StatusBadRequest, err.Error())
 		}
 
-		if strings.Contains(path.Path, "../") {
+		if !verifyPath(path.Path) {
 			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
-		}
-		if strings.HasPrefix(path.Path, ".git") {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{"Access Denied"})
 		}
 
 		pdf, _, err := app.Compile(strings.TrimPrefix(path.Path, app.WorkDir))
@@ -155,11 +182,8 @@ func main() {
 	})
 	e.GET("/getfile", func(c echo.Context) error {
 		filename := c.Request().URL.Query().Get("filename")
-		if strings.Contains(filename, "../") {
+		if !verifyPath(filename) {
 			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
-		}
-		if strings.HasPrefix(filename, ".git") {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{"Access Denied"})
 		}
 		path := filepath.Join(app.WorkDir, filename)
 		if !isFile(path) {
@@ -176,7 +200,7 @@ func main() {
 		}
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"name":    filepath.Base(filename),
-			"path":    path,
+			"path":    strings.TrimPrefix(path, app.WorkDir),
 			"content": string(content),
 		})
 	})

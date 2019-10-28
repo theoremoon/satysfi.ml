@@ -63,6 +63,8 @@ type Msg
     | GetSourceResult (Result Http.Error Source)
     | CompileRequest
     | CompileResult (Result Http.Error String)
+    | SaveRequest
+    | Saved (Result Http.Error ())
     | SourceUpdate String
 
 
@@ -130,6 +132,14 @@ update msg model =
             in
             ( { model | source = newSource }, Cmd.none )
 
+        SaveRequest ->
+            case model.source of
+                Just source ->
+                    ( model, saveRequest source )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         FileTreeRequest ->
             ( model, fileTreeRequest )
 
@@ -195,6 +205,20 @@ compileRequest source =
         }
 
 
+saveRequest : Source -> Cmd Msg
+saveRequest source =
+    Http.post
+        { url = "/save"
+        , body =
+            Http.jsonBody <|
+                E.object
+                    [ ( "path", E.string source.path )
+                    , ( "content", E.string source.content )
+                    ]
+        , expect = Http.expectWhatever Saved
+        }
+
+
 
 -- SUBSCRIPTIONS
 
@@ -233,6 +257,7 @@ view model =
                 div [] []
             , div [ class "menu" ]
                 [ button [ onClick OpenSidebar ] [ text "FILES" ]
+                , button [ onClick SaveRequest ] [ text "SAVE" ]
                 , button [ onClick CompileRequest ] [ text "COMPILE" ]
                 ]
             , div [ class "main" ]
