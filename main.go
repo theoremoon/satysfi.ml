@@ -170,6 +170,10 @@ func main() {
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
 		}
+		contentType := http.DetectContentType(content)
+		if !strings.HasPrefix(contentType, "text/") {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{"Not a Text File"})
+		}
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"name":    filepath.Base(filename),
 			"path":    path,
