@@ -139,7 +139,8 @@ func main() {
 
 	// handlers
 	e.Static("/", "web/dist")
-	e.POST("/save", func(c echo.Context) error {
+	e.File("/*", "web/dist/index.html")
+	e.POST("/api/save", func(c echo.Context) error {
 		request := new(struct {
 			Path    string `json:"path"`
 			Content string `json:"content"`
@@ -160,7 +161,7 @@ func main() {
 		}
 		return c.String(http.StatusOK, "")
 	})
-	e.POST("/compile", func(c echo.Context) error {
+	e.POST("/api/compile", func(c echo.Context) error {
 		path := new(struct {
 			Path string `json:"path"`
 		})
@@ -180,7 +181,7 @@ func main() {
 
 		return c.String(http.StatusOK, pdfb64)
 	})
-	e.GET("/getfile", func(c echo.Context) error {
+	e.GET("/api/getfile", func(c echo.Context) error {
 		filename := c.Request().URL.Query().Get("filename")
 		if !verifyPath(filename) {
 			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
@@ -204,7 +205,7 @@ func main() {
 			"content": string(content),
 		})
 	})
-	e.GET("/filetree", func(c echo.Context) error {
+	e.GET("/api/filetree", func(c echo.Context) error {
 		if !isDir(app.WorkDir) {
 			return c.String(http.StatusInternalServerError, "Working directory is not available")
 		}
