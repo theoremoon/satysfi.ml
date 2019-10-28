@@ -25,3 +25,22 @@ html,body {
     height: 50px;
     background-color: yellow;
 }
+.fileTreeSwitch {
+    position: relative;
+    z-index: 1000;
+}
+.fileTree {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 30%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    z-index: 100;
+    background-color: limegreen;
+}
+.fileTreeSwitch:checked+.fileTree {
+    display: block;
+}
