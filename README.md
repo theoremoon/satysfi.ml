@@ -27,7 +27,7 @@
 2. make dev
 3. access `http://loacalhost:8888`
 
-(withou reflex)
+(without reflex)
 1. make build-satysfi
 2. make build
 3. PORT=8888 make run
