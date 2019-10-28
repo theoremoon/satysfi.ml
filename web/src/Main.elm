@@ -48,12 +48,15 @@ type alias Model =
     { source : Maybe Source
     , product : Maybe String
     , fileTree : Maybe FileTree
+    , sidebarFlag : Bool
     }
 
 
 type Msg
     = OnUrlChange Url
     | OnUrlRequest Browser.UrlRequest
+    | OpenSidebar
+    | CloseSidebar
     | FileTreeRequest
     | FileTreeResult (Result Http.Error FileTree)
     | GetSourceRequest String
@@ -97,7 +100,7 @@ sourceDecoder =
 
 init : () -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ url navKey =
-    ( Model Nothing Nothing Nothing
+    ( Model Nothing Nothing Nothing False
     , fileTreeRequest
     )
 
@@ -109,6 +112,12 @@ init _ url navKey =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        OpenSidebar ->
+            ( { model | sidebarFlag = True }, Cmd.none )
+
+        CloseSidebar ->
+            ( { model | sidebarFlag = False }, Cmd.none )
+
         SourceUpdate newContent ->
             let
                 newSource =
@@ -206,9 +215,24 @@ view model =
         [ div
             [ class "container"
             ]
-            [ div [ class "menu" ]
-                [ input [ type_ "checkbox", class "fileTreeSwitch" ] [ text "FILES" ]
-                , fileTree [ class "fileTree" ] model
+            [ if model.sidebarFlag then
+                div [ class "sidebar" ]
+                    [ sidebarBackground
+                        [ class "sidebarBackground"
+                        , onClick CloseSidebar
+                        ]
+                        model
+                    , fileTree
+                        [ class "fileTree"
+                        , onClick CloseSidebar
+                        ]
+                        model
+                    ]
+
+              else
+                div [] []
+            , div [ class "menu" ]
+                [ button [ onClick OpenSidebar ] [ text "FILES" ]
                 , button [ onClick CompileRequest ] [ text "COMPILE" ]
                 ]
             , div [ class "main" ]
@@ -255,7 +279,9 @@ fileTreeImpl : FileTree -> Html Msg
 fileTreeImpl filetree =
     case filetree of
         File name path ->
-            li [ onClick (GetSourceRequest path) ] [ text name ]
+            li []
+                [ a [ onClick (GetSourceRequest path) ] [ text name ]
+                ]
 
         Directory name _ dirs children ->
             li []
@@ -273,3 +299,8 @@ fileTree attrs model =
 
         Nothing ->
             ul attrs []
+
+
+sidebarBackground : List (Attribute Msg) -> Model -> Html Msg
+sidebarBackground attrs model =
+    div attrs []
