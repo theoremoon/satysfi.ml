@@ -1,13 +1,16 @@
 module Main exposing (main)
 
+import Base64
 import Browser
 import Browser.Navigation
 import Html exposing (..)
 import Html.Attributes exposing (attribute, class, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
-import Json.Decode
+import Json.Decode as D
+import Json.Encode as E
 import Url exposing (Url)
+import Url.Builder
 
 
 
@@ -30,12 +33,19 @@ main =
 
 
 type FileTree
-    = File String
-    | Directory ( String, List FileTree, List FileTree )
+    = File String String
+    | Directory String String (List FileTree) (List FileTree)
+
+
+type alias Source =
+    { name : String
+    , path : String
+    , content : String
+    }
 
 
 type alias Model =
-    { currentSource : String
+    { source : Maybe Source
     , product : Maybe String
     , fileTree : Maybe FileTree
     }
@@ -46,6 +56,8 @@ type Msg
     | OnUrlRequest Browser.UrlRequest
     | FileTreeRequest
     | FileTreeResult (Result Http.Error FileTree)
+    | GetSourceRequest String
+    | GetSourceResult (Result Http.Error Source)
     | CompileRequest
     | CompileResult (Result Http.Error String)
     | SourceUpdate String
@@ -55,48 +67,37 @@ type Msg
 -- DECODER
 
 
-makeDirectory : String -> List FileTree -> List FileTree -> FileTree
-makeDirectory name dirs children =
-    Directory ( name, dirs, children )
-
-
-fileTreeFileDecoder : Json.Decode.Decoder FileTree
+fileTreeFileDecoder : D.Decoder FileTree
 fileTreeFileDecoder =
-    Json.Decode.map File (Json.Decode.field "name" Json.Decode.string)
+    D.map2 File
+        (D.field "name" D.string)
+        (D.field "path" D.string)
 
 
-fileTreeDecoder : Json.Decode.Decoder FileTree
+fileTreeDecoder : D.Decoder FileTree
 fileTreeDecoder =
-    Json.Decode.map3 makeDirectory
-        (Json.Decode.field "name" Json.Decode.string)
-        (Json.Decode.field "childdirs" (Json.Decode.list (Json.Decode.lazy (\_ -> fileTreeDecoder))))
-        (Json.Decode.field "children" (Json.Decode.list fileTreeFileDecoder))
+    D.map4 Directory
+        (D.field "name" D.string)
+        (D.field "path" D.string)
+        (D.field "childdirs" (D.list (D.lazy (\_ -> fileTreeDecoder))))
+        (D.field "children" (D.list fileTreeFileDecoder))
+
+
+sourceDecoder : D.Decoder Source
+sourceDecoder =
+    D.map3 Source
+        (D.field "name" D.string)
+        (D.field "path" D.string)
+        (D.field "content" D.string)
 
 
 
 -- INIT
 
 
-initialSource =
-    """
-@require: stdjabook
-
-document (|
-  title = {Hello, World!};
-  author = {\\@theoremoon};
-  show-toc = false;
-  show-title = true;
-|) '<
-  +p {
-    Hello, World!
-  }
->
-"""
-
-
 init : () -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ url navKey =
-    ( Model initialSource Nothing Nothing
+    ( Model Nothing Nothing Nothing
     , fileTreeRequest
     )
 
@@ -108,8 +109,17 @@ init _ url navKey =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        SourceUpdate newSource ->
-            ( { model | currentSource = newSource }, Cmd.none )
+        SourceUpdate newContent ->
+            let
+                newSource =
+                    case model.source of
+                        Just source ->
+                            Just { source | content = newContent }
+
+                        Nothing ->
+                            Nothing
+            in
+            ( { model | source = newSource }, Cmd.none )
 
         FileTreeRequest ->
             ( model, fileTreeRequest )
@@ -120,8 +130,22 @@ update msg model =
         FileTreeResult (Result.Err _) ->
             ( model, Cmd.none )
 
+        GetSourceRequest path ->
+            ( model, getFileRequest path )
+
+        GetSourceResult (Result.Ok newSource) ->
+            ( { model | source = Just newSource }, Cmd.none )
+
+        GetSourceResult (Result.Err _) ->
+            ( model, Cmd.none )
+
         CompileRequest ->
-            ( model, compileRequest model.currentSource )
+            case model.source of
+                Just source ->
+                    ( model, compileRequest source )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         CompileResult (Result.Ok result) ->
             ( { model | product = Just result }, Cmd.none )
@@ -145,11 +169,19 @@ fileTreeRequest =
         }
 
 
-compileRequest : String -> Cmd Msg
+getFileRequest : String -> Cmd Msg
+getFileRequest path =
+    Http.get
+        { url = Url.Builder.absolute [ "getfile" ] [ Url.Builder.string "filename" path ]
+        , expect = Http.expectJson GetSourceResult sourceDecoder
+        }
+
+
+compileRequest : Source -> Cmd Msg
 compileRequest source =
     Http.post
         { url = "/compile"
-        , body = Http.stringBody "text/plain" source
+        , body = Http.jsonBody <| E.object [ ( "path", E.string source.path ) ]
         , expect = Http.expectString CompileResult
         }
 
@@ -180,8 +212,8 @@ view model =
                 , button [ onClick CompileRequest ] [ text "COMPILE" ]
                 ]
             , div [ class "main" ]
-                [ satysfiEditor [] model
-                , productViewer [] model
+                [ satysfiEditor [ class "editor" ] model
+                , productViewer [ class "viewer" ] model
                 ]
             ]
         ]
@@ -190,14 +222,18 @@ view model =
 
 satysfiEditor : List (Attribute Msg) -> Model -> Html Msg
 satysfiEditor attrs model =
-    textarea
-        (attrs
-            ++ [ class "editor"
-               , value model.currentSource
-               , onInput SourceUpdate
-               ]
-        )
-        []
+    case model.source of
+        Just source ->
+            textarea
+                (attrs
+                    ++ [ value source.content
+                       , onInput SourceUpdate
+                       ]
+                )
+                []
+
+        Nothing ->
+            div attrs [ text "Please Load File" ]
 
 
 productViewer : List (Attribute Msg) -> Model -> Html Msg
@@ -207,7 +243,6 @@ productViewer attrs model =
             embed
                 (attrs
                     ++ [ src ("data:application/pdf;base64," ++ pdf)
-                       , class "viewer"
                        ]
                 )
                 []
@@ -219,10 +254,10 @@ productViewer attrs model =
 fileTreeImpl : FileTree -> Html Msg
 fileTreeImpl filetree =
     case filetree of
-        File name ->
-            li [] [ text name ]
+        File name path ->
+            li [ onClick (GetSourceRequest path) ] [ text name ]
 
-        Directory ( name, dirs, children ) ->
+        Directory name _ dirs children ->
             li []
                 [ text name
                 , ul [] (List.map fileTreeImpl dirs)

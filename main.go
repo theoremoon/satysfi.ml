@@ -18,30 +18,29 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/otiai10/copy"
 )
 
-func (app *application) Compile(source []byte) ([]byte, string, error) {
-	dir, err := ioutil.TempDir("", "satysfibuild")
-	if err != nil {
-		return nil, "", err
-	}
-	defer os.RemoveAll(dir)
-
-	sourceFile := filepath.Join(dir, "main.saty")
-	if err := ioutil.WriteFile(sourceFile, source, 06666); err != nil {
-		return nil, "", err
-	}
-
+func randomName() string {
 	randomBuf := make([]byte, 8)
-	_, err = rand.Read(randomBuf)
+	_, err := rand.Read(randomBuf)
 	if err != nil {
-		return nil, "", err
+		panic(err)
 	}
 	name := fmt.Sprintf("%x", randomBuf)
+	return name
+}
 
+func (app *application) Compile(main string) ([]byte, string, error) {
+	dir := filepath.Join(os.TempDir(), "satysfibuild"+randomName())
+	// defer os.RemoveAll(dir)
+
+	copy.Copy(app.WorkDir, dir)
+
+	name := randomName()
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
-	cmd := exec.CommandContext(ctx, "docker", "run", "--name", name, "--rm", "-v", dir+":/mount", app.DockerImage, "satysfi", "main.saty", "-o", "out.pdf")
+	cmd := exec.CommandContext(ctx, "docker", "run", "--name", name, "--rm", "-v", dir+":/mount", app.DockerImage, "satysfi", filepath.Join("/mount", main), "-o", "out.pdf")
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -82,12 +81,17 @@ type application struct {
 
 type File struct {
 	Name string `json:"name"`
+	Path string `json:"path"`
 }
 type Directory struct {
-	Name      string `json:"name"`
-	path      string
+	Name      string       `json:"name"`
+	Path      string       `json:"path"`
 	ChildDirs []*Directory `json:"childdirs"`
 	Children  []*File      `json:"children"`
+}
+
+type ErrorResponse struct {
+	Reason string `json:"reason"`
 }
 
 func isDir(path string) bool {
@@ -96,6 +100,13 @@ func isDir(path string) bool {
 		return false
 	}
 	return fi.Mode().IsDir()
+}
+func isFile(path string) bool {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return fi.Mode().IsRegular()
 }
 
 func main() {
@@ -120,18 +131,50 @@ func main() {
 	// handlers
 	e.Static("/", "web/dist")
 	e.POST("/compile", func(c echo.Context) error {
-		source, err := ioutil.ReadAll(c.Request().Body)
-		if err != nil {
+		path := new(struct {
+			Path string `json:"path"`
+		})
+		if err := c.Bind(path); err != nil {
 			return c.String(http.StatusBadRequest, err.Error())
 		}
 
-		pdf, _, err := app.Compile(source)
+		if strings.Contains(path.Path, "../") {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
+		}
+		if strings.HasPrefix(path.Path, ".git") {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{"Access Denied"})
+		}
+
+		pdf, _, err := app.Compile(strings.TrimPrefix(path.Path, app.WorkDir))
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
 		pdfb64 := base64.StdEncoding.EncodeToString(pdf)
 
 		return c.String(http.StatusOK, pdfb64)
+	})
+	e.GET("/getfile", func(c echo.Context) error {
+		filename := c.Request().URL.Query().Get("filename")
+		if strings.Contains(filename, "../") {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
+		}
+		if strings.HasPrefix(filename, ".git") {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{"Access Denied"})
+		}
+		path := filepath.Join(app.WorkDir, filename)
+		if !isFile(path) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{"Not Found"})
+		}
+
+		content, err := ioutil.ReadFile(path)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+		}
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"name":    filepath.Base(filename),
+			"path":    path,
+			"content": string(content),
+		})
 	})
 	e.GET("/filetree", func(c echo.Context) error {
 		if !isDir(app.WorkDir) {
@@ -141,7 +184,7 @@ func main() {
 		// iterate working directory and construct tree
 		root := Directory{
 			Name:      app.WorkDir,
-			path:      app.WorkDir,
+			Path:      app.WorkDir,
 			ChildDirs: []*Directory{},
 			Children:  []*File{},
 		}
@@ -167,13 +210,13 @@ func main() {
 			// pop stack until prefix matches
 			for !strings.HasPrefix(p, lastPrefix) {
 				dirStack = dirStack[:len(dirStack)-1]
-				lastPrefix = dirStack[len(dirStack)-1].path
+				lastPrefix = dirStack[len(dirStack)-1].Path
 			}
 
 			if info.IsDir() {
 				current := &Directory{
 					Name:      filepath.Base(p),
-					path:      p,
+					Path:      p,
 					ChildDirs: []*Directory{},
 					Children:  []*File{},
 				}
@@ -185,6 +228,7 @@ func main() {
 			} else if info.Mode().IsRegular() {
 				dirStack[len(dirStack)-1].Children = append(dirStack[len(dirStack)-1].Children, &File{
 					Name: filepath.Base(p),
+					Path: strings.TrimPrefix(p, app.WorkDir),
 				})
 			}
 			return nil
