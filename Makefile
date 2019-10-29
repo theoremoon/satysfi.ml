@@ -4,9 +4,7 @@ help:
 
 .PHONY: dev
 dev:
-	docker-compose down
-	docker-compose up -d db
-	DSN="postgres://127.0.0.1:54321/satysfi?user=satysfi&password=satysfi&sslmode=disable" PORT=8888 reflex -g reflex.conf -s -- reflex -c reflex.conf
+	PORT=8888 reflex -g reflex.conf -s -- reflex -c reflex.conf
 
 .PHONY: run
 run:
