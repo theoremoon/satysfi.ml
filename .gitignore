@@ -1,8 +1,0 @@
-elm-stuff/
-app
-node_modules/
-.cache/
-dist/
-yarn-error.log
-*.pdf
-work/
