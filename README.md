@@ -1,5 +1,5 @@
 # SATySFi-Online
-(Work in Progress)
+(このREADMEはv0.0.1時のものです)
 
 [SATySFi](https://github.com/gfngfn/SATySFi)がOnlineで使えたら→→うれしい！！
 
