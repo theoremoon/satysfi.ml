@@ -1,32 +1,29 @@
-.PHONY: all
-all:
+.PHONY: help
+help:
 	@cat Makefile | grep -E "^[A-Za-z0-9-]+:"
+
 .PHONY: dev
 dev:
 	PORT=8888 reflex -g reflex.conf -s -- reflex -c reflex.conf
 
-.PHONY: release
-release:
-	docker-compose up --build
-
 .PHONY: build
-build: build-web build-go
+build: ui go
 
 .PHONY: run
 run:
 	./app
 
-.PHONY: build-go
-build-go: main.go
+.PHONY: go
+go: main.go
 	go build -o app
 
-.PHONY: build-web
-build-web: web/src/*.elm
-	cd web; \
+.PHONY: ui
+ui:
+	cd ui; \
 	yarn;\
 	yarn run parcel build index.html;
 
-.PHONY: build-satysfi
-build-satysfi:
+.PHONY: satysfi
+satysfi:
 	cd SATySFi; \
 	docker build -t satysfi .

@@ -90,10 +90,6 @@ type Directory struct {
 	Children  []*File      `json:"children"`
 }
 
-type ErrorResponse struct {
-	Reason string `json:"reason"`
-}
-
 func isDir(path string) bool {
 	fi, err := os.Lstat(path)
 	if err != nil {
@@ -138,7 +134,12 @@ func main() {
 	e.Use(middleware.Logger())
 
 	// handlers
-	e.Static("/", "web/dist")
+	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		Root:   "./ui/dist/",
+		Index:  "index.html",
+		HTML5:  true,
+		Browse: false,
+	}))
 	e.POST("/save", func(c echo.Context) error {
 		request := new(struct {
 			Path    string `json:"path"`
@@ -148,15 +149,15 @@ func main() {
 			return c.String(http.StatusBadRequest, err.Error())
 		}
 		if !verifyPath(request.Path) {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
+			return c.String(http.StatusBadRequest, "Bad path")
 		}
 		path := filepath.Join(app.WorkDir, request.Path)
 		if !isFile(path) {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
+			return c.String(http.StatusBadRequest, "Bad path")
 		}
 
 		if err := ioutil.WriteFile(path, []byte(request.Content), 0); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+			return c.String(http.StatusInternalServerError, err.Error())
 		}
 		return c.String(http.StatusOK, "")
 	})
@@ -169,7 +170,7 @@ func main() {
 		}
 
 		if !verifyPath(path.Path) {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
+			return c.String(http.StatusBadRequest, "Bad path")
 		}
 
 		pdf, _, err := app.Compile(strings.TrimPrefix(path.Path, app.WorkDir))
@@ -183,20 +184,20 @@ func main() {
 	e.GET("/getfile", func(c echo.Context) error {
 		filename := c.Request().URL.Query().Get("filename")
 		if !verifyPath(filename) {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{"Bad path"})
+			return c.String(http.StatusBadRequest, "Bad path")
 		}
 		path := filepath.Join(app.WorkDir, filename)
 		if !isFile(path) {
-			return c.JSON(http.StatusNotFound, ErrorResponse{"Not Found"})
+			return c.String(http.StatusNotFound, "Not Found")
 		}
 
 		content, err := ioutil.ReadFile(path)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+			return c.String(http.StatusInternalServerError, err.Error())
 		}
 		contentType := http.DetectContentType(content)
 		if !strings.HasPrefix(contentType, "text/") {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{"Not a Text File"})
+			return c.String(http.StatusBadRequest, "Not a Text File")
 		}
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"name":    filepath.Base(filename),
