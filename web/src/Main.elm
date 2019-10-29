@@ -2,16 +2,15 @@ module Main exposing (main)
 
 import Base64
 import Browser
-import Browser.Navigation as Nav
+import Browser.Navigation
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, href, src, type_, value)
+import Html.Attributes exposing (attribute, class, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as D
 import Json.Encode as E
 import Url exposing (Url)
 import Url.Builder
-import Url.Parser as Parser exposing ((</>), Parser)
 
 
 
@@ -24,97 +23,208 @@ main =
         , update = update
         , view = view
         , subscriptions = subscriptions
-        , onUrlRequest = LinkClicked
-        , onUrlChange = UrlChanged
+        , onUrlRequest = OnUrlRequest
+        , onUrlChange = OnUrlChange
         }
-
-
-
--- ROUTE
-
-
-type Route
-    = IndexPage
-    | RegisterPage
-
-
-routeParser : Parser (Route -> a) a
-routeParser =
-    Parser.oneOf
-        [ Parser.map IndexPage Parser.top
-        , Parser.map RegisterPage (Parser.s "register")
-        ]
 
 
 
 -- MODEL
 
 
-type ViewModel
-    = Index
-    | Register
-    | Notfound
+type FileTree
+    = File String String
+    | Directory String String (List FileTree) (List FileTree)
 
 
-type alias Model =
-    { key : Nav.Key
-    , url : Url
-    , model : ViewModel
+type alias Source =
+    { name : String
+    , path : String
+    , content : String
     }
 
 
-urlToModel : Url -> ViewModel
-urlToModel url =
-    case Parser.parse routeParser url of
-        Just IndexPage ->
-            Index
+type alias Model =
+    { source : Maybe Source
+    , product : Maybe String
+    , fileTree : Maybe FileTree
+    , sidebarFlag : Bool
+    }
 
-        Just RegisterPage ->
-            Register
 
-        Nothing ->
-            Notfound
+type Msg
+    = OnUrlChange Url
+    | OnUrlRequest Browser.UrlRequest
+    | OpenSidebar
+    | CloseSidebar
+    | FileTreeRequest
+    | FileTreeResult (Result Http.Error FileTree)
+    | GetSourceRequest String
+    | GetSourceResult (Result Http.Error Source)
+    | CompileRequest
+    | CompileResult (Result Http.Error String)
+    | SaveRequest
+    | Saved (Result Http.Error ())
+    | SourceUpdate String
+
+
+
+-- DECODER
+
+
+fileTreeFileDecoder : D.Decoder FileTree
+fileTreeFileDecoder =
+    D.map2 File
+        (D.field "name" D.string)
+        (D.field "path" D.string)
+
+
+fileTreeDecoder : D.Decoder FileTree
+fileTreeDecoder =
+    D.map4 Directory
+        (D.field "name" D.string)
+        (D.field "path" D.string)
+        (D.field "childdirs" (D.list (D.lazy (\_ -> fileTreeDecoder))))
+        (D.field "children" (D.list fileTreeFileDecoder))
+
+
+sourceDecoder : D.Decoder Source
+sourceDecoder =
+    D.map3 Source
+        (D.field "name" D.string)
+        (D.field "path" D.string)
+        (D.field "content" D.string)
 
 
 
 -- INIT
 
 
-init : () -> Url -> Nav.Key -> ( Model, Cmd Msg )
-init _ url key =
-    ( Model key url (urlToModel url), Cmd.none )
+init : () -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
+init _ url navKey =
+    ( Model Nothing Nothing Nothing False
+    , fileTreeRequest
+    )
 
 
 
 -- UPDATE
 
 
-type Msg
-    = LinkClicked Browser.UrlRequest
-    | UrlChanged Url
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        LinkClicked urlRequest ->
-            case urlRequest of
-                Browser.Internal url ->
-                    ( model, Nav.pushUrl model.key (Url.toString url) )
+        OpenSidebar ->
+            ( { model | sidebarFlag = True }, Cmd.none )
 
-                Browser.External href ->
-                    ( model, Nav.load href )
+        CloseSidebar ->
+            ( { model | sidebarFlag = False }, Cmd.none )
 
-        UrlChanged url ->
-            ( { model | url = url, model = urlToModel url }, Cmd.none )
+        SourceUpdate newContent ->
+            let
+                newSource =
+                    case model.source of
+                        Just source ->
+                            Just { source | content = newContent }
+
+                        Nothing ->
+                            Nothing
+            in
+            ( { model | source = newSource }, Cmd.none )
+
+        SaveRequest ->
+            case model.source of
+                Just source ->
+                    ( model, saveRequest source )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        FileTreeRequest ->
+            ( model, fileTreeRequest )
+
+        FileTreeResult (Result.Ok fileTreeResult) ->
+            ( { model | fileTree = Just fileTreeResult }, Cmd.none )
+
+        FileTreeResult (Result.Err _) ->
+            ( model, Cmd.none )
+
+        GetSourceRequest path ->
+            ( model, getFileRequest path )
+
+        GetSourceResult (Result.Ok newSource) ->
+            ( { model | source = Just newSource }, Cmd.none )
+
+        GetSourceResult (Result.Err _) ->
+            ( model, Cmd.none )
+
+        CompileRequest ->
+            case model.source of
+                Just source ->
+                    ( model, compileRequest source )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        CompileResult (Result.Ok result) ->
+            ( { model | product = Just result }, Cmd.none )
+
+        CompileResult (Result.Err _) ->
+            ( model, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
 
 
 
--- SUBSCRIPTION
+-- CMDS
+
+
+fileTreeRequest : Cmd Msg
+fileTreeRequest =
+    Http.get
+        { url = "/filetree"
+        , expect = Http.expectJson FileTreeResult fileTreeDecoder
+        }
+
+
+getFileRequest : String -> Cmd Msg
+getFileRequest path =
+    Http.get
+        { url = Url.Builder.absolute [ "getfile" ] [ Url.Builder.string "filename" path ]
+        , expect = Http.expectJson GetSourceResult sourceDecoder
+        }
+
+
+compileRequest : Source -> Cmd Msg
+compileRequest source =
+    Http.post
+        { url = "/compile"
+        , body = Http.jsonBody <| E.object [ ( "path", E.string source.path ) ]
+        , expect = Http.expectString CompileResult
+        }
+
+
+saveRequest : Source -> Cmd Msg
+saveRequest source =
+    Http.post
+        { url = "/save"
+        , body =
+            Http.jsonBody <|
+                E.object
+                    [ ( "path", E.string source.path )
+                    , ( "content", E.string source.content )
+                    ]
+        , expect = Http.expectWhatever Saved
+        }
+
+
+
+-- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
+subscriptions model =
     Sub.none
 
 
@@ -124,25 +234,98 @@ subscriptions _ =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "SATySFi Online"
+    { title = "Hello World"
     , body =
-        [ div []
-            [ h1 [] [ text "SATySFi Online" ]
-            , div []
-                [ text
-                    (case model.model of
-                        Index ->
-                            "Index"
+        [ div
+            [ class "container"
+            ]
+            [ if model.sidebarFlag then
+                div [ class "sidebar" ]
+                    [ sidebarBackground
+                        [ class "sidebarBackground"
+                        , onClick CloseSidebar
+                        ]
+                        model
+                    , fileTree
+                        [ class "fileTree"
+                        , onClick CloseSidebar
+                        ]
+                        model
+                    ]
 
-                        Register ->
-                            "Register"
-
-                        Notfound ->
-                            "Notfound"
-                    )
+              else
+                div [] []
+            , div [ class "menu" ]
+                [ button [ onClick OpenSidebar ] [ text "FILES" ]
+                , button [ onClick SaveRequest ] [ text "SAVE" ]
+                , button [ onClick CompileRequest ] [ text "COMPILE" ]
                 ]
-            , a [ href "/register" ] [ text "register" ]
-            , a [ href "/takoyaki" ] [ text "takoyaki" ]
+            , div [ class "main" ]
+                [ satysfiEditor [ class "editor" ] model
+                , productViewer [ class "viewer" ] model
+                ]
             ]
         ]
     }
+
+
+satysfiEditor : List (Attribute Msg) -> Model -> Html Msg
+satysfiEditor attrs model =
+    case model.source of
+        Just source ->
+            textarea
+                (attrs
+                    ++ [ value source.content
+                       , onInput SourceUpdate
+                       ]
+                )
+                []
+
+        Nothing ->
+            div attrs [ text "Please Load File" ]
+
+
+productViewer : List (Attribute Msg) -> Model -> Html Msg
+productViewer attrs model =
+    case model.product of
+        Just pdf ->
+            embed
+                (attrs
+                    ++ [ src ("data:application/pdf;base64," ++ pdf)
+                       ]
+                )
+                []
+
+        Nothing ->
+            div attrs [ text "Nothing there" ]
+
+
+fileTreeImpl : FileTree -> Html Msg
+fileTreeImpl filetree =
+    case filetree of
+        File name path ->
+            li []
+                [ a [ onClick (GetSourceRequest path) ] [ text name ]
+                ]
+
+        Directory name _ dirs children ->
+            li []
+                [ text name
+                , ul [] (List.map fileTreeImpl dirs)
+                , ul [] (List.map fileTreeImpl children)
+                ]
+
+
+fileTree : List (Attribute Msg) -> Model -> Html Msg
+fileTree attrs model =
+    case model.fileTree of
+        Just tree ->
+            ul attrs [ fileTreeImpl tree ]
+
+        Nothing ->
+            ul attrs []
+
+
+sidebarBackground : List (Attribute Msg) -> Model -> Html Msg
+sidebarBackground attrs model =
+    div attrs []
