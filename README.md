@@ -23,12 +23,12 @@
 
 (with reflex)
 
-1. make build-satysfi
+1. make satysfi
 2. make dev
 3. access `http://loacalhost:8888`
 
 (without reflex)
-1. make build-satysfi
+1. make satysfi
 2. make build
 3. PORT=8888 make run
 4. access `http://loacalhost:8888`
@@ -38,26 +38,34 @@
 
 ```
 .
-├── docker-compose.yml        調整中
-├── Dockerfile              　調整中
+├── config.json             # 設定ファイル。いる
+├── docs
+│   └── screenshot.png
 ├── go.mod
 ├── go.sum
-├── main.go                   サーバ。labstack/echo製。htmlの配信とSATySFiのコンパイルを担ってる
-├── Makefile                  便利
+├── LICENSE
+├── main.go                 # 本体。ファイルの配信とかコンパイルとかやる
+├── Makefile
 ├── README.md
 ├── reflex.conf
-├── SATySFi                   SATySFi用のDocker Imageを作るやつ。docker-composeはおまけ
+├── SATySFi                 # SATySFiが使えるDockerfileとおまけのdocker-compose
 │   ├── docker-compose.yml
 │   └── Dockerfile
-└── web                       フロント。Elm製
-    ├── elm.json
-    ├── index.html
-    ├── index.js
-    ├── main.css
-    ├── package.json          Elm をビルドしてCSSをbundleするためにparcelを使ってる
-    ├── src
-    │   └── Main.elm          フロント本体。Elm楽しい
-    └── yarn.lock
+├── template                # プロジェクトのデフォルトの構成。名前はconfig.jsonに依る
+│   ├── assets
+│   ├── demo.saty
+│   └── local.satyh
+├── ui                      # フロント。Elm
+│   ├── elm.json
+│   ├── elm-stuff
+│   ├── index.html
+│   ├── index.js
+│   ├── main.css
+│   ├── package.json
+│   ├── src
+│   └── yarn.lock
+└── work                    # Project保管ばしょ。config.jsonに書いてある
+
 ```
 
 
