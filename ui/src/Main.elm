@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Base64
 import Browser
-import Browser.Navigation
+import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (attribute, class, src, type_, value)
 import Html.Events exposing (onClick, onInput)
@@ -11,6 +11,7 @@ import Json.Decode as D
 import Json.Encode as E
 import Url exposing (Url)
 import Url.Builder
+import Url.Parser as Parser exposing ((</>), Parser)
 
 
 
@@ -23,8 +24,8 @@ main =
         , update = update
         , view = view
         , subscriptions = subscriptions
-        , onUrlRequest = OnUrlRequest
-        , onUrlChange = OnUrlChange
+        , onUrlRequest = UrlRequested
+        , onUrlChange = UrlChanged
         }
 
 
@@ -45,22 +46,27 @@ type alias Source =
 
 
 type alias Model =
-    { source : Maybe Source
+    { id : Maybe String
+    , source : Maybe Source
     , product : Maybe String
     , fileTree : Maybe FileTree
     , sidebarFlag : Bool
+    , key : Nav.Key
+    , url : Url
     }
 
 
 type Msg
-    = OnUrlChange Url
-    | OnUrlRequest Browser.UrlRequest
+    = UrlChanged Url
+    | UrlRequested Browser.UrlRequest
     | OpenSidebar
     | CloseSidebar
-    | FileTreeRequest
+    | NewProjectRequest
+    | NewProjectResult (Result Http.Error String)
+    | FileTreeRequest String
     | FileTreeResult (Result Http.Error FileTree)
-    | GetSourceRequest String
-    | GetSourceResult (Result Http.Error Source)
+    | GetFileRequest String
+    | GetFileResult (Result Http.Error Source)
     | CompileRequest
     | CompileResult (Result Http.Error String)
     | SaveRequest
@@ -100,11 +106,33 @@ sourceDecoder =
 -- INIT
 
 
-init : () -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
-init _ url navKey =
-    ( Model Nothing Nothing Nothing False
-    , fileTreeRequest
+projectParser : Parser (String -> a) a
+projectParser =
+    Parser.s "project" </> Parser.string
+
+
+initWithID : String -> Url -> Nav.Key -> ( Model, Cmd Msg )
+initWithID id url key =
+    ( Model (Just id) Nothing Nothing Nothing False key url
+    , fileTreeRequest id
     )
+
+
+initWithNothing : Url -> Nav.Key -> ( Model, Cmd Msg )
+initWithNothing url key =
+    ( Model Nothing Nothing Nothing Nothing False key url
+    , Cmd.none
+    )
+
+
+init : () -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
+    case Parser.parse projectParser url of
+        Just id ->
+            initWithID id url key
+
+        Nothing ->
+            initWithNothing url key
 
 
 
@@ -114,11 +142,34 @@ init _ url navKey =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        {--
+        UrlRequested urlRequest ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ( model, Nav.pushUrl model.key (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Nav.load href )
+        --}
+        UrlChanged url ->
+            case Parser.parse projectParser url of
+                Just id ->
+                    initWithID id model.url model.key
+
+                Nothing ->
+                    initWithNothing model.url model.key
+
         OpenSidebar ->
             ( { model | sidebarFlag = True }, Cmd.none )
 
         CloseSidebar ->
             ( { model | sidebarFlag = False }, Cmd.none )
+
+        NewProjectRequest ->
+            ( model, newProjectRequest )
+
+        NewProjectResult (Result.Ok id) ->
+            ( model, Nav.pushUrl model.key (Url.Builder.absolute [ "project", id ] []) )
 
         SourceUpdate newContent ->
             let
@@ -133,15 +184,15 @@ update msg model =
             ( { model | source = newSource }, Cmd.none )
 
         SaveRequest ->
-            case model.source of
-                Just source ->
-                    ( model, saveRequest source )
+            case ( model.id, model.source ) of
+                ( Just id, Just source ) ->
+                    ( model, saveRequest id source )
 
-                Nothing ->
+                _ ->
                     ( model, Cmd.none )
 
-        FileTreeRequest ->
-            ( model, fileTreeRequest )
+        FileTreeRequest id ->
+            ( model, fileTreeRequest id )
 
         FileTreeResult (Result.Ok fileTreeResult) ->
             ( { model | fileTree = Just fileTreeResult }, Cmd.none )
@@ -149,21 +200,26 @@ update msg model =
         FileTreeResult (Result.Err _) ->
             ( model, Cmd.none )
 
-        GetSourceRequest path ->
-            ( model, getFileRequest path )
+        GetFileRequest path ->
+            case model.id of
+                Just id ->
+                    ( model, getFileRequest id path )
 
-        GetSourceResult (Result.Ok newSource) ->
+                Nothing ->
+                    ( model, Cmd.none )
+
+        GetFileResult (Result.Ok newSource) ->
             ( { model | source = Just newSource }, Cmd.none )
 
-        GetSourceResult (Result.Err _) ->
+        GetFileResult (Result.Err _) ->
             ( model, Cmd.none )
 
         CompileRequest ->
-            case model.source of
-                Just source ->
-                    ( model, compileRequest source )
+            case ( model.id, model.source ) of
+                ( Just id, Just source ) ->
+                    ( { model | product = Nothing }, compileRequest id source )
 
-                Nothing ->
+                _ ->
                     ( model, Cmd.none )
 
         CompileResult (Result.Ok result) ->
@@ -180,42 +236,51 @@ update msg model =
 -- CMDS
 
 
-fileTreeRequest : Cmd Msg
-fileTreeRequest =
+newProjectRequest : Cmd Msg
+newProjectRequest =
+    Http.post
+        { url = "/api/new-project"
+        , body = Http.emptyBody
+        , expect = Http.expectString NewProjectResult
+        }
+
+
+fileTreeRequest : String -> Cmd Msg
+fileTreeRequest id =
     Http.get
-        { url = "/filetree"
+        { url = Url.Builder.absolute [ "api", id, "list" ] []
         , expect = Http.expectJson FileTreeResult fileTreeDecoder
         }
 
 
-getFileRequest : String -> Cmd Msg
-getFileRequest path =
+getFileRequest : String -> String -> Cmd Msg
+getFileRequest id path =
     Http.get
-        { url = Url.Builder.absolute [ "getfile" ] [ Url.Builder.string "filename" path ]
-        , expect = Http.expectJson GetSourceResult sourceDecoder
+        { url = Url.Builder.absolute [ "api", id, "get" ] [ Url.Builder.string "path" path ]
+        , expect = Http.expectJson GetFileResult sourceDecoder
         }
 
 
-compileRequest : Source -> Cmd Msg
-compileRequest source =
+saveRequest : String -> Source -> Cmd Msg
+saveRequest id source =
     Http.post
-        { url = "/compile"
-        , body = Http.jsonBody <| E.object [ ( "path", E.string source.path ) ]
-        , expect = Http.expectString CompileResult
-        }
-
-
-saveRequest : Source -> Cmd Msg
-saveRequest source =
-    Http.post
-        { url = "/save"
+        { url = Url.Builder.absolute [ "api", id, "save" ] []
         , body =
             Http.jsonBody <|
                 E.object
                     [ ( "path", E.string source.path )
-                    , ( "content", E.string source.content )
+                    , ( "data", E.string (Base64.encode source.content) )
                     ]
         , expect = Http.expectWhatever Saved
+        }
+
+
+compileRequest : String -> Source -> Cmd Msg
+compileRequest id source =
+    Http.post
+        { url = Url.Builder.absolute [ "api", id, "compile" ] []
+        , body = Http.jsonBody <| E.object [ ( "path", E.string source.path ) ]
+        , expect = Http.expectString CompileResult
         }
 
 
@@ -259,6 +324,7 @@ view model =
                 [ button [ onClick OpenSidebar ] [ text "FILES" ]
                 , button [ onClick SaveRequest ] [ text "SAVE" ]
                 , button [ onClick CompileRequest ] [ text "COMPILE" ]
+                , button [ onClick NewProjectRequest ] [ text "NEW PROJECT" ]
                 ]
             , div [ class "main" ]
                 [ satysfiEditor [ class "editor" ] model
@@ -305,7 +371,7 @@ fileTreeImpl filetree =
     case filetree of
         File name path ->
             li []
-                [ a [ onClick (GetSourceRequest path) ] [ text name ]
+                [ a [ onClick (GetFileRequest path) ] [ text name ]
                 ]
 
         Directory name _ dirs children ->

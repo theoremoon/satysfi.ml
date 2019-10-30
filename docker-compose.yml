@@ -1,10 +1,11 @@
 version: '3'
 services:
-  app:
-    build:
-      context: .
+  db:
+    image: postgres:12
     environment:
-      - PORT=${PORT:-8888}
+      - POSTGRES_USER=satysfi
+      - POSTGRES_PASSWORD=satysfi
+      - POSTGRES_DB=satysfi
     ports:
-      - ${PORT:-8888}:${PORT:-8888}
+      - 54321:5432
 

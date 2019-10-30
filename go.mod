@@ -10,6 +10,7 @@ require (
 	github.com/kr/pty v1.1.8 // indirect
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0 // indirect
+	github.com/lib/pq v1.2.0
 	github.com/ogier/pflag v0.0.1 // indirect
 	github.com/otiai10/copy v1.0.2
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 // indirect

@@ -1,4 +1,5 @@
 {
     "workdir": "work",
+    "templatedir": "template",
     "dockerimage": "satysfi"
 }
