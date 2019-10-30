@@ -289,7 +289,7 @@ func main() {
 		path = filepath.Join(path, req.Path)
 		dir := filepath.Dir(path)
 		if !isDir(dir) {
-			if err := os.MkdirAll(dir, os.ModeDir); err != nil {
+			if err := os.MkdirAll(dir, 0775); err != nil {
 				return c.String(http.StatusInternalServerError, err.Error())
 			}
 		}

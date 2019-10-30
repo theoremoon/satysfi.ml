@@ -4,7 +4,7 @@ import Base64
 import Browser
 import Browser.Navigation as Nav
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, src, type_, value)
+import Html.Attributes exposing (attribute, class, href, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as D
@@ -51,6 +51,7 @@ type alias Model =
     , product : Maybe String
     , fileTree : Maybe FileTree
     , sidebarFlag : Bool
+    , text : String
     , key : Nav.Key
     , url : Url
     }
@@ -72,6 +73,9 @@ type Msg
     | SaveRequest
     | Saved (Result Http.Error ())
     | SourceUpdate String
+    | TextUpdate String
+    | NewFileRequest
+    | NewFileResult (Result Http.Error Source)
 
 
 
@@ -113,14 +117,14 @@ projectParser =
 
 initWithID : String -> Url -> Nav.Key -> ( Model, Cmd Msg )
 initWithID id url key =
-    ( Model (Just id) Nothing Nothing Nothing False key url
+    ( Model (Just id) Nothing Nothing Nothing False "" key url
     , fileTreeRequest id
     )
 
 
 initWithNothing : Url -> Nav.Key -> ( Model, Cmd Msg )
 initWithNothing url key =
-    ( Model Nothing Nothing Nothing Nothing False key url
+    ( Model Nothing Nothing Nothing Nothing False "" key url
     , Cmd.none
     )
 
@@ -142,15 +146,15 @@ init _ url key =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        {--
         UrlRequested urlRequest ->
             case urlRequest of
                 Browser.Internal url ->
-                    ( model, Nav.pushUrl model.key (Url.toString url) )
+                    {--( model, Nav.pushUrl model.key (Url.toString url) ) --}
+                    ( model, Cmd.none )
 
                 Browser.External href ->
                     ( model, Nav.load href )
-        --}
+
         UrlChanged url ->
             case Parser.parse projectParser url of
                 Just id ->
@@ -182,6 +186,9 @@ update msg model =
                             Nothing
             in
             ( { model | source = newSource }, Cmd.none )
+
+        TextUpdate newText ->
+            ( { model | text = newText }, Cmd.none )
 
         SaveRequest ->
             case ( model.id, model.source ) of
@@ -228,6 +235,25 @@ update msg model =
         CompileResult (Result.Err _) ->
             ( model, Cmd.none )
 
+        NewFileRequest ->
+            case model.id of
+                Just id ->
+                    ( { model | text = "" }, newFileRequest id model.text )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        NewFileResult (Result.Ok newFileSource) ->
+            case model.id of
+                Just id ->
+                    ( { model | source = Just newFileSource }, fileTreeRequest id )
+
+                Nothing ->
+                    ( { model | source = Just newFileSource }, Cmd.none )
+
+        NewFileResult (Result.Err _) ->
+            ( model, Cmd.none )
+
         _ ->
             ( model, Cmd.none )
 
@@ -272,6 +298,22 @@ saveRequest id source =
                     , ( "data", E.string (Base64.encode source.content) )
                     ]
         , expect = Http.expectWhatever Saved
+        }
+
+
+newFileRequest : String -> String -> Cmd Msg
+newFileRequest id path =
+    Http.post
+        { url = Url.Builder.absolute [ "api", id, "save" ] []
+        , body =
+            Http.jsonBody <|
+                E.object
+                    [ ( "path", E.string path )
+                    , ( "data", E.string "" )
+                    ]
+        , expect =
+            Http.expectWhatever
+                (\r -> NewFileResult (Result.map (\_ -> Source "" path "") r))
         }
 
 
@@ -325,6 +367,18 @@ view model =
                 , button [ onClick SaveRequest ] [ text "SAVE" ]
                 , button [ onClick CompileRequest ] [ text "COMPILE" ]
                 , button [ onClick NewProjectRequest ] [ text "NEW PROJECT" ]
+                , br [] []
+                , div [ class "float-right" ]
+                    [ span [] [ a [ href "//github.com/theoremoon/SATySFi-Online" ] [ text "Source" ] ]
+                    ]
+                , input [ type_ "text", value model.text, onInput TextUpdate ] []
+                , button [ onClick NewFileRequest ] [ text "NEW FILE" ]
+                , case model.source of
+                    Just source ->
+                        span [] [ text source.path ]
+
+                    Nothing ->
+                        span [] [ text "No file opened" ]
                 ]
             , div [ class "main" ]
                 [ satysfiEditor [ class "editor" ] model
@@ -371,7 +425,7 @@ fileTreeImpl filetree =
     case filetree of
         File name path ->
             li []
-                [ a [ onClick (GetFileRequest path) ] [ text name ]
+                [ span [ onClick (GetFileRequest path) ] [ text name ]
                 ]
 
         Directory name _ dirs children ->
