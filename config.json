@@ -1,5 +1,6 @@
 {
     "workdir": "work",
     "templatedir": "template",
-    "dockerimage": "satysfi"
+    "builddir": "build",
+    "dockerimage": "theoldmoon0602/satysfi:latest"
 }

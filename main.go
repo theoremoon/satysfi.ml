@@ -31,9 +31,9 @@ func randomName() string {
 	return name
 }
 
-func Compile(dockerImage, workDir, path string) ([]byte, string, error) {
-	dir := filepath.Join(os.TempDir(), "satysfibuild"+randomName())
-	// defer os.RemoveAll(dir)
+func Compile(dockerImage, buildDir, workDir, path string) ([]byte, string, error) {
+	dir := filepath.Join(buildDir, "satysfibuild"+randomName())
+	defer os.RemoveAll(dir)
 
 	copy.Copy(workDir, dir)
 
@@ -73,6 +73,7 @@ func Compile(dockerImage, workDir, path string) ([]byte, string, error) {
 type application struct {
 	DockerImage string `json:"dockerimage"`
 	WorkDir     string `json:"workdir"`
+	BuildDir    string `json:"builddir"`
 	TemplateDir string `json:"templatedir"`
 }
 
@@ -186,7 +187,10 @@ func main() {
 	}
 	app := application{}
 	json.Unmarshal(config, &app)
-
+	app.BuildDir, err = filepath.Abs(app.BuildDir)
+	if err != nil {
+		log.Fatal(err)
+	}
 	e := echo.New()
 
 	// middlewares
@@ -320,7 +324,7 @@ func main() {
 		}
 
 		dir := filepath.Join(app.WorkDir, id)
-		pdf, _, err := Compile(app.DockerImage, dir, req.Path)
+		pdf, _, err := Compile(app.DockerImage, app.BuildDir, dir, req.Path)
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
