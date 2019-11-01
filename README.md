@@ -48,9 +48,6 @@
 ├── Makefile
 ├── README.md
 ├── reflex.conf
-├── SATySFi                 # SATySFiが使えるDockerfileとおまけのdocker-compose
-│   ├── docker-compose.yml
-│   └── Dockerfile
 ├── template                # プロジェクトのデフォルトの構成。名前はconfig.jsonに依る
 │   ├── assets
 │   ├── demo.saty
