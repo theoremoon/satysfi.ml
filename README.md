@@ -23,16 +23,19 @@
 
 (with reflex)
 
-1. make satysfi
-2. make dev
-3. access `http://loacalhost:8888`
+1. make dev
+2. access `http://loacalhost:8888`
 
 (without reflex)
-1. make satysfi
-2. make build
-3. PORT=8888 make run
-4. access `http://loacalhost:8888`
+1. make build
+2. PORT=8888 make run
+3. access `http://loacalhost:8888`
 
+**NOTE**: This tool uses a Docker image for PDF generation. When starting the application local environment, execute the following command before compiling the SATySFi document.
+
+```
+$ docker pull theoldmoon0602/satysfi:latest
+```
 
 ## Directory Structure
 
