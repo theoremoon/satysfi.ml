@@ -13,5 +13,6 @@ require (
 	github.com/lib/pq v1.2.0
 	github.com/ogier/pflag v0.0.1 // indirect
 	github.com/otiai10/copy v1.0.2
+	github.com/rakyll/statik v0.1.6
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 // indirect
 )

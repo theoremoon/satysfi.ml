@@ -15,6 +15,7 @@ run:
 
 .PHONY: go
 go: main.go
+	go generate
 	go build -o app
 
 .PHONY: ui
@@ -22,6 +23,8 @@ ui:
 	cd ui; \
 	yarn;\
 	yarn run parcel build index.html;
+	rm -rf dist
+	mv ui/dist ./dist
 
 .PHONY: satysfi
 satysfi:
