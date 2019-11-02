@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +20,11 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/otiai10/copy"
+	"github.com/rakyll/statik/fs"
+	_ "github.com/theoremoon/SATySFi-Online/statik"
 )
+
+//go:generate statik -src ./dist -f
 
 func randomName() string {
 	randomBuf := make([]byte, 8)
@@ -176,6 +181,7 @@ func verifyID(id string) bool {
 }
 
 func main() {
+	// load environment variable and config
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Fatal("You MUST specify environment variable: PORT")
@@ -191,18 +197,57 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fs, err := fs.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	e := echo.New()
 
 	// middlewares
 	e.Use(middleware.Logger())
 
 	// handlers
-	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-		Root:   "./ui/dist/",
-		Index:  "index.html",
-		HTML5:  true,
-		Browse: false,
-	}))
+	e.GET("/*", func(c echo.Context) error {
+		// set dummy response writer for serving files
+		res := c.Response()
+		writer := res.Writer
+		recorder := httptest.NewRecorder()
+		res.Writer = recorder
+
+		// serve statics
+		handler := echo.WrapHandler(http.FileServer(fs))
+		err := handler(c)
+		if err != nil {
+			return err
+		}
+
+		// restore writer and response index.html if 404
+		res.Writer = writer
+		if res.Status == http.StatusNotFound {
+			f, err := fs.Open("/index.html")
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+			content, err := ioutil.ReadAll(f)
+			if err != nil {
+				return err
+			}
+			return c.HTMLBlob(http.StatusOK, content)
+
+		} else {
+			for k, vs := range recorder.Result().Header {
+				for _, v := range vs {
+					writer.Header().Add(k, v)
+				}
+			}
+			writer.Write(recorder.Body.Bytes())
+		}
+
+		return nil
+	})
 
 	// get project file tree
 	e.GET("/api/:id/list", func(c echo.Context) error {
