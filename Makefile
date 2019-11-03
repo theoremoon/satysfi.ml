@@ -30,3 +30,8 @@ ui:
 satysfi:
 	cd SATySFi; \
 	docker build -t satysfi .
+
+.PHONY: setup
+setup:
+	go get github.com/rakyll/statik
+
