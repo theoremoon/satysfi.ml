@@ -18,6 +18,7 @@
 - GNU Make
 - yarn
 - [cespare/reflex](https://github.com/cespare/reflex)
+- [statik](https://github.com/rakyll/statik)
 
 ## How to use
 
@@ -27,9 +28,10 @@
 2. access `http://loacalhost:8888`
 
 (without reflex)
-1. make build
-2. PORT=8888 make run
-3. access `http://loacalhost:8888`
+1. make setup
+2. make build
+3. PORT=8888 make run
+4. access `http://loacalhost:8888`
 
 **NOTE**: This tool uses a Docker image for PDF generation. When starting the application local environment, execute the following command before compiling the SATySFi document.
 
