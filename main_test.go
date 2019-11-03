@@ -27,6 +27,11 @@ func TestIsDir(t *testing.T) {
 			in:   "README.md",
 			want: false,
 		},
+		{
+			desc: "Returns false when file didn't exist",
+			in:   "not_exist_file",
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -43,14 +48,19 @@ func TestIsFile(t *testing.T) {
 		want bool
 	}{
 		{
-			desc: "Returns true when path is directory",
+			desc: "Returns true when path is file",
+			in:   "README.md",
+			want: true,
+		},
+		{
+			desc: "Returns false when path is directory",
 			in:   "docs",
 			want: false,
 		},
 		{
-			desc: "Returns false when path is file",
-			in:   "README.md",
-			want: true,
+			desc: "Returns false when file didn't exist",
+			in:   "not_exist_file",
+			want: false,
 		},
 	}
 	for _, tt := range tests {
