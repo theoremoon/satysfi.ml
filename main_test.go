@@ -84,7 +84,48 @@ func TestTravarseDirectory(t *testing.T) {
 }
 
 func TestVerifyPath(t *testing.T) {
-	// TODO
+	tests := []struct {
+		desc string
+		in   string
+		want bool
+	}{
+		{
+			desc: "Returns true when path is normal",
+			in:   "abcde/ghi",
+			want: true,
+		},
+		{
+			desc: "Returns false when path is invalid (directory travarsal)",
+			in:   "abcde/../ghi",
+			want: false,
+		},
+		{
+			desc: "Returns false when path is invalid (directory travarsal)",
+			in:   "../ghi",
+			want: false,
+		},
+		{
+			desc: "Returns false when path is invalid (directory travarsal)",
+			in:   "../../../../../../../../../../etc/passwd",
+			want: false,
+		},
+		{
+			desc: "Returns false when path has prefix '.git'",
+			in:   ".git/config",
+			want: false,
+		},
+		{
+			desc: "Returns false when path has prefix '.git'",
+			in:   ".git",
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			got := verifyPath(tt.in)
+			assert.Equal(t, tt.want, got, tt.desc)
+		})
+	}
 }
 
 func TestVerifyID(t *testing.T) {
