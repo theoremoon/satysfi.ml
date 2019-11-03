@@ -129,7 +129,38 @@ func TestVerifyPath(t *testing.T) {
 }
 
 func TestVerifyID(t *testing.T) {
-	// TODO
+	tests := []struct {
+		desc string
+		in   string
+		want bool
+	}{
+		{
+			desc: "Returns true when ID has only hex characters",
+			in:   randomName(),
+			want: true,
+		},
+		{
+			desc: "Returns false when ID contains large characters",
+			in:   "0123456789ABCDEF",
+			want: false,
+		},
+		{
+			desc: "Returns false when ID contains non hex characters",
+			in:   "g",
+			want: false,
+		},
+		{
+			desc: "Returns false when ID contains non hex characters",
+			in:   "あ",
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			got := verifyID(tt.in)
+			assert.Equal(t, tt.want, got, tt.desc)
+		})
+	}
 }
 
 func TestCompile(t *testing.T) {
