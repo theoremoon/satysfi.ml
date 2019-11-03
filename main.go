@@ -192,7 +192,9 @@ func main() {
 		log.Fatal(err)
 	}
 	app := application{}
-	json.Unmarshal(config, &app)
+	if err := json.Unmarshal(config, &app); err != nil {
+		log.Fatal(err)
+	}
 	app.BuildDir, err = filepath.Abs(app.BuildDir)
 	if err != nil {
 		log.Fatal(err)
