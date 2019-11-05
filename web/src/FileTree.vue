@@ -1,0 +1,23 @@
+<template>
+    <div>
+        <p>{{ tree.name }}</p>
+        <ul>
+            <li v-for="file in tree.children">{{ file.name }}</li>
+            <FileTree v-for="dir in tree.childdirs" :tree="dir"></FileTree>
+        </ul>
+    </div>
+
+</template>
+
+<script>
+import Vue from 'vue'
+import FileTree from './FileTree.vue'
+
+export default Vue.extend({
+    name: 'FileTree',
+    props: [
+        'tree'
+    ],
+})
+
+</script>
