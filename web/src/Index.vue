@@ -38,11 +38,17 @@
 
 <script>
 import Vue from 'vue'
+import axios from 'axios'
 import * as monaco from 'monaco-editor'
 import FileTree from './FileTree.vue'
 
 
 const api_data = '{"name":"/","path":"/","childdirs":[{"name":"assets","path":"/assets","childdirs":[],"children":[{"name":"satysfi-logo.jpg","path":"/assets/satysfi-logo.jpg"}]}],"children":[{"name":"demo.saty","path":"/demo.saty"},{"name":"local.satyh","path":"/local.satyh"}]}'
+const id = "28fc3a2c3a66faba"
+
+const getFiles = async function(id) {
+    return await axios.get("/api/" + id + "/list").then(r => r.data)
+}
 
 export default Vue.extend({
     components: {
@@ -56,13 +62,13 @@ export default Vue.extend({
             files: [],
         }
     },
-    mounted() {
+    async mounted() {
         monaco.editor.create(this.$refs.editor, {
             language: 'satysfi',
             automaticLayout: true,
             theme: 'vs'
         })
-        this.files = JSON.parse(api_data);
+        this.files = await getFiles(id);
         console.log(this.files)
     },
 })

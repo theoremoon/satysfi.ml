@@ -7,7 +7,7 @@ dev:
 	PORT=8888 reflex -g reflex.conf -s -- reflex -c reflex.conf
 
 .PHONY: build
-build: ui go
+build: web go
 
 .PHONY: run
 run:
@@ -25,6 +25,14 @@ ui:
 	yarn run parcel build index.html;
 	rm -rf dist
 	mv ui/dist ./dist
+
+.PHONY: web
+web:
+	cd web; \
+	yarn;\
+	yarn run parcel build index.html;
+	rm -rf dist
+	mv web/dist ./dist
 
 .PHONY: satysfi
 satysfi:
