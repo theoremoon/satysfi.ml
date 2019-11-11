@@ -1,6 +1,7 @@
 import Vue from "vue";
 import Vuex from "vuex";
 import axios from "axios";
+import { Base64 } from "js-base64";
 
 Vue.use(Vuex);
 
@@ -61,7 +62,7 @@ export default new Vuex.Store({
   actions: {
     async newProject(context) {
       const newID = await axios.post("/api/new-project");
-      return contet.dispatch("loadProject", newID.id);
+      return context.dispatch("loadProject", newID.data.id);
     },
     async loadProject(context, id) {
       context.commit("setID", id);
@@ -91,7 +92,7 @@ export default new Vuex.Store({
     async save(context, content) {
       const promise = axios.post("/api/" + context.state.id + "/save", {
         path: context.state.currentFile.path,
-        data: btoa(content)
+        data: Base64.encode(content)
       });
       context.commit("setContent", content);
       return promise;
