@@ -11,7 +11,9 @@
             <button @click="newProject">NEW PROJECT</button>
             <button @click="save">SAVE</button>
             <button @click="compile">COMPILE</button>
-
+            <button @click="newFile">NEW FILE</button>
+            <br>
+            <div>{{ current_file ? current_file.path : "No file opened" }}</div>
         </div>
         <div class="main">
             <div ref="editor" id="editor" class="editor">
@@ -128,6 +130,16 @@ export default Vue.extend({
             this.stdout = result.stdout
             this.stderr = result.stderr
             this.pdf = result.pdf
+        },
+        async newFile() {
+            let path = window.prompt("Path for new file")
+            if (!path) {
+                return;
+            }
+            saveFile(this.id, path, "");
+            getList(this.id)
+                .then(r => { this.files = r })
+            this.loadFile(path)
         },
     },
 })
