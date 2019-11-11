@@ -33,6 +33,9 @@ jobs:
             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
             dep ensure
         fi
+        
+    - name: Get Statik
+      run: go get github.com/rakyll/statik
 
     - name: Build
       run: make build
