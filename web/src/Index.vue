@@ -202,10 +202,10 @@ export default Vue.extend({
     height: 100%;
 }
 .sidebar-background {
-    position: absolute;
+    position: fixed;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.7);
+    background-color: rgba(0,0,0,0.2);
     z-index: 999;
 }
 .sidebar {
@@ -214,7 +214,7 @@ export default Vue.extend({
     max-width: 400px;
     min-width: 100px;
     height: 100%;
-    background-color: rgba(32,128,32,1);
+    background-color: limegreen;
     z-index:1000;
 }
 

@@ -26,3 +26,15 @@ export default Vue.extend({
 })
 
 </script>
+
+<style lang="scss" scoped>
+p,ul {
+    margin: 0;
+}
+li {
+    &:hover {
+        cursor: pointer;
+        background-color: green;
+    }
+}
+</style>
