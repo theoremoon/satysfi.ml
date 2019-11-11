@@ -36,7 +36,7 @@ func randomName() string {
 	return name
 }
 
-func Compile(dockerImage, buildDir, workDir, path string) ([]byte, string, error) {
+func Compile(dockerImage, buildDir, workDir, path string) ([]byte, string, string) {
 	dir := filepath.Join(buildDir, "satysfibuild"+randomName())
 	defer os.RemoveAll(dir)
 
@@ -67,12 +67,9 @@ func Compile(dockerImage, buildDir, workDir, path string) ([]byte, string, error
 	log.Println(stdout.String())
 	log.Println(stderr.String())
 
-	pdf, err := ioutil.ReadFile(filepath.Join(dir, "out.pdf"))
-	if err != nil {
-		return nil, "", err
-	}
+	pdf, _ := ioutil.ReadFile(filepath.Join(dir, "out.pdf"))
 
-	return pdf, stdout.String(), nil
+	return pdf, stdout.String(), stderr.String()
 }
 
 type application struct {
@@ -307,7 +304,9 @@ func main() {
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
-		return c.String(http.StatusOK, id)
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"id": id,
+		})
 	})
 
 	// save or create new file in project
@@ -369,13 +368,14 @@ func main() {
 		}
 
 		dir := filepath.Join(app.WorkDir, id)
-		pdf, _, err := Compile(app.DockerImage, app.BuildDir, dir, req.Path)
-		if err != nil {
-			return c.String(http.StatusInternalServerError, err.Error())
-		}
+		pdf, stdout, stderr := Compile(app.DockerImage, app.BuildDir, dir, req.Path)
 		pdfb64 := base64.StdEncoding.EncodeToString(pdf)
 
-		return c.String(http.StatusOK, pdfb64)
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"pdf":    pdfb64,
+			"stdout": stdout,
+			"stderr": stderr,
+		})
 	})
 
 	// run

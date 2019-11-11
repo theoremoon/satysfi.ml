@@ -3,14 +3,14 @@
         <template v-if="sidebar">
             <div class="sidebar-background" @click="sidebar = false"></div>
             <div class="sidebar" @click="sidebar = false">
-                <FileTree :tree="files"></FileTree>
+                <FileTree :tree="files" @path-click="loadFile"></FileTree>
             </div>
         </template>
         <div class="menu">
             <button @click="sidebar = true">FILES</button>
-            <button>NEW PROJECT</button>
-            <button>SAVE</button>
-            <button>COMPILE</button>
+            <button @click="newProject">NEW PROJECT</button>
+            <button @click="save">SAVE</button>
+            <button @click="compile">COMPILE</button>
 
         </div>
         <div class="main">
@@ -27,8 +27,8 @@
                         <embed :src="'data:application/pdf;base64,' + pdf" type="application/pdf" v-if="pdf">
                         <div v-else>No Output</div>
                     </template>
-                    <div v-if="tabIndex==1">stdout</div>
-                    <div v-if="tabIndex==2">stderr</div>
+                    <pre v-if="tabIndex==1">{{ stdout }}</pre>
+                    <pre v-if="tabIndex==2">{{ stderr }}</pre>
                 </div>
             </div>
         </div>
@@ -43,11 +43,35 @@ import * as monaco from 'monaco-editor'
 import FileTree from './FileTree.vue'
 
 
-const api_data = '{"name":"/","path":"/","childdirs":[{"name":"assets","path":"/assets","childdirs":[],"children":[{"name":"satysfi-logo.jpg","path":"/assets/satysfi-logo.jpg"}]}],"children":[{"name":"demo.saty","path":"/demo.saty"},{"name":"local.satyh","path":"/local.satyh"}]}'
-const id = "28fc3a2c3a66faba"
-
-const getFiles = async function(id) {
+const getList = async function(id) {
     return await axios.get("/api/" + id + "/list").then(r => r.data)
+}
+const getFile = async function(id, path) {
+    return await axios.get("/api/" + id + "/get", {
+        params: {
+            path: path,
+        }
+    })
+        .then(r => r.data)
+}
+const newProject = async function() {
+    return await axios.post("/api/new-project").then(r => r.data)
+}
+const saveFile = async function (id, path, data) {
+    return await axios.post("/api/" + id + "/save", {
+        path: path,
+        data: btoa(data),
+    })
+}
+const compileRequest = async function (id, path) {
+    return await axios.post("/api/" + id + "/compile", {
+        path: path,
+    })
+        .then(r => ({
+            pdf: r.data.pdf,
+            stdout: r.data.stdout,
+            stderr: r.data.stderr,
+        }))
 }
 
 export default Vue.extend({
@@ -56,20 +80,55 @@ export default Vue.extend({
     },
     data() {
         return {
+            id: '',
             tabIndex: 0,
             pdf: '',
+            stdout: '',
+            stderr: '',
+            editor: undefined,
             sidebar: false,
             files: [],
+            current_file: undefined, // {name: string, path: string, content: string}
         }
     },
     async mounted() {
-        monaco.editor.create(this.$refs.editor, {
+        this.editor = monaco.editor.create(this.$refs.editor, {
             language: 'satysfi',
             automaticLayout: true,
-            theme: 'vs'
+            theme: 'vs',
+            minimap: {
+                enabled: false,
+            },
         })
-        this.files = await getFiles(id);
-        console.log(this.files)
+        if (this.$route.params.hasOwnProperty('id')) {
+            this.loadProject(this.$route.params.id)
+        }
+    },
+    methods: {
+        async loadProject(id) {
+            this.id = id
+            this.files = await getList(this.id);
+        },
+        async loadFile(path) {
+            this.current_file = await getFile(this.id, path)
+            this.editor.setValue(this.current_file.content)
+        },
+        async newProject() {
+            const id = (await newProject()).id
+            this.$router.push({
+                path: `/project/${id}`
+            })
+            this.loadProject(id)
+        },
+        async save() {
+            saveFile(this.id, this.current_file.path, this.current_file.content)
+        },
+        async compile() {
+            let result = await compileRequest(this.id, this.current_file.path)
+            this.stdout = result.stdout
+            this.stderr = result.stderr
+            this.pdf = result.pdf
+        },
     },
 })
 </script>
@@ -120,7 +179,10 @@ export default Vue.extend({
     width: 50%;
     height: 100%;
     resize: horizontal;
-    overflow: auto;
+    overflow: overlay;
+    padding-bottom: 10px;
+    z-index: 888;
+
 }
 
 .viewer {
@@ -142,5 +204,15 @@ export default Vue.extend({
     height: 100%;
     background-color: rgba(32,128,32,1);
     z-index:1000;
+}
+
+.content {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+embed {
+    width: 100%;
+    height: calc(100% - 10px);
 }
 </style>

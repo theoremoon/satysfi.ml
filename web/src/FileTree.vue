@@ -2,7 +2,7 @@
     <div>
         <p>{{ tree.name }}</p>
         <ul>
-            <li v-for="file in tree.children">{{ file.name }}</li>
+            <li v-for="file in tree.children" @click="click(file.path)">{{ file.name }}</li>
             <FileTree v-for="dir in tree.childdirs" :tree="dir"></FileTree>
         </ul>
     </div>
@@ -18,6 +18,11 @@ export default Vue.extend({
     props: [
         'tree'
     ],
+    methods: {
+        click(path) {
+            this.$emit('path-click', path)
+        }
+    },
 })
 
 </script>
