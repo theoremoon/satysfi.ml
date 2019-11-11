@@ -95,7 +95,7 @@ export default Vue.extend({
         this.editor = monaco.editor.create(this.$refs.editor, {
             language: 'satysfi',
             automaticLayout: true,
-            theme: 'vs',
+            theme: 'satysfier',
             minimap: {
                 enabled: false,
             },
