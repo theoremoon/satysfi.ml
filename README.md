@@ -84,3 +84,17 @@ theoremoon
 ## License
 
 Apache 2.0 (SATySFiはLGPLだけど大丈夫かな……？)
+
+## CHANGELOG
+
+### 2019-11-11 [0.0.3]
+
+#### Changed
+
+- Elm -> Vue
+- Monaco Editorの導入
+- コンパイルログの表示
+- GitHub Actionsの導入
+
+
+
