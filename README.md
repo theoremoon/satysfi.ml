@@ -10,28 +10,29 @@
 ## Requirements
 
 - go 1.13
-- Elm 0.19.1
+- Vue 2.6.10
 - Docker >= 19.03
 
 ## DevDependencies
 
 - GNU Make
+- GNU Parallel
 - yarn
 - [cespare/reflex](https://github.com/cespare/reflex)
 - [statik](https://github.com/rakyll/statik)
 
 ## How to use
 
-(with reflex)
+(with GNU parallel and reflex)
 
 1. make dev
-2. access `http://loacalhost:8888`
+2. access `http://localhost:8888`
 
 (without reflex)
 1. make setup
 2. make build
 3. PORT=8888 make run
-4. access `http://loacalhost:8888`
+4. access `http://localhost:8888`
 
 **NOTE**: This tool uses a Docker image for PDF generation. When starting the application local environment, execute the following command before compiling the SATySFi document.
 
@@ -43,31 +44,31 @@ $ docker pull theoldmoon0602/satysfi:latest
 
 ```
 .
-├── config.json             # 設定ファイル。いる
+├── app                           # 成果物。gitignoreされてる
+├── dist                          # ビルドされたフロントが個々にできる。gitignoreされてる
 ├── docs
 │   └── screenshot.png
 ├── go.mod
 ├── go.sum
 ├── LICENSE
-├── main.go                 # 本体。ファイルの配信とかコンパイルとかやる
+├── main.go                       # ファイルの配信とAPIを捌くのをあｙる
 ├── Makefile
 ├── README.md
-├── reflex.conf
-├── template                # プロジェクトのデフォルトの構成。名前はconfig.jsonに依る
+├── statik                        # dist/以下をstatikでまとめてる。gitignoreされてる
+│   └── statik.go
+├── template                      # プロジェクトのテンプレート
 │   ├── assets
 │   ├── demo.saty
 │   └── local.satyh
-├── ui                      # フロント。Elm
-│   ├── elm.json
-│   ├── elm-stuff
+├── ui                            # Vue。なんやかんやでElmやめちゃった
+│   ├── favicon.png
 │   ├── index.html
 │   ├── index.js
-│   ├── main.css
+│   ├── node_modules
 │   ├── package.json
 │   ├── src
 │   └── yarn.lock
-└── work                    # Project保管ばしょ。config.jsonに書いてある
-
+└── work                          # 作業ファイルがここに作られる。gitignoreされてる
 ```
 
 ## Want to DO

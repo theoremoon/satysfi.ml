@@ -7,7 +7,7 @@ dev:
 	parallel --line-buffer bash -c ::: 'make watch-ui' 'reflex -g "dist/*" -s -- sh -c "sleep 5; make go && PORT=8888 make run"'
 
 .PHONY: build
-build: web go
+build: ui go
 
 .PHONY: run
 run:
