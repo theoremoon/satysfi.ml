@@ -4,7 +4,7 @@ help:
 
 .PHONY: dev
 dev:
-	PORT=8888 reflex -g reflex.conf -s -- reflex -c reflex.conf
+	parallel --line-buffer bash -c ::: 'make watch-ui' 'reflex -g "dist/*" -s -- sh -c "sleep 5; make go && PORT=8888 make run"'
 
 .PHONY: build
 build: web go
@@ -18,21 +18,16 @@ go: main.go
 	go generate
 	go build -o app
 
+.PHONY: watch-ui
+watch-ui:
+	cd ui;\
+		yarn run parcel watch index.html -d ../dist;
+
 .PHONY: ui
 ui:
 	cd ui; \
 	yarn;\
-	yarn run parcel build index.html;
-	rm -rf dist
-	mv ui/dist ./dist
-
-.PHONY: web
-web:
-	cd web; \
-	yarn;\
-	yarn run parcel build index.html;
-	rm -rf dist
-	mv web/dist ./dist
+	yarn run parcel build index.html -d ../dist;
 
 .PHONY: satysfi
 satysfi:

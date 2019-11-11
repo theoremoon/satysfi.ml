@@ -99,7 +99,7 @@ export default new Vuex.Store({
     async compile(context) {
       return axios
         .post("/api/" + context.state.id + "/compile", {
-          path: path
+          path: context.state.currentFile.path
         })
         .then(r => {
           context.commit("setPDF", r.data.pdf);
