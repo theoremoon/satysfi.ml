@@ -2,7 +2,8 @@ name: CI
 on:
   create:
     tags:
-      - v*.*.*
+    - v*.*.*
+
 jobs:
 
   build:
