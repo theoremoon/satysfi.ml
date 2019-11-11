@@ -3,7 +3,7 @@
         <template v-if="sidebar">
             <div class="sidebar-background" @click="sidebar = false"></div>
             <div class="sidebar" @click="sidebar = false">
-                <FileTree :tree="files" @path-click="loadFile"></FileTree>
+                <FileTree :tree="fileTree"></FileTree>
             </div>
         </template>
         <div class="menu">
@@ -13,7 +13,7 @@
             <button @click="compile">COMPILE</button>
             <button @click="newFile">NEW FILE</button>
             <br>
-            <div>{{ current_file ? current_file.path : "No file opened" }}</div>
+            <div>{{ currentFile ? currentFile.path : "No file opened" }}</div>
         </div>
         <div class="main">
             <div ref="editor" id="editor" class="editor">
@@ -40,41 +40,10 @@
 
 <script>
 import Vue from 'vue'
-import axios from 'axios'
+import {mapState} from 'vuex'
 import * as monaco from 'monaco-editor'
 import FileTree from './FileTree.vue'
 
-
-const getList = async function(id) {
-    return await axios.get("/api/" + id + "/list").then(r => r.data)
-}
-const getFile = async function(id, path) {
-    return await axios.get("/api/" + id + "/get", {
-        params: {
-            path: path,
-        }
-    })
-        .then(r => r.data)
-}
-const newProject = async function() {
-    return await axios.post("/api/new-project").then(r => r.data)
-}
-const saveFile = async function (id, path, data) {
-    return await axios.post("/api/" + id + "/save", {
-        path: path,
-        data: btoa(data),
-    })
-}
-const compileRequest = async function (id, path) {
-    return await axios.post("/api/" + id + "/compile", {
-        path: path,
-    })
-        .then(r => ({
-            pdf: r.data.pdf,
-            stdout: r.data.stdout,
-            stderr: r.data.stderr,
-        }))
-}
 
 export default Vue.extend({
     components: {
@@ -82,15 +51,9 @@ export default Vue.extend({
     },
     data() {
         return {
-            id: '',
             tabIndex: 0,
-            pdf: '',
-            stdout: '',
-            stderr: '',
             editor: undefined,
             sidebar: false,
-            files: [],
-            current_file: undefined, // {name: string, path: string, content: string}
         }
     },
     async mounted() {
@@ -103,44 +66,52 @@ export default Vue.extend({
             },
         })
         if (this.$route.params.hasOwnProperty('id')) {
-            this.loadProject(this.$route.params.id)
+            this.$store.dispatch('loadProject', this.$route.params.id)
         }
+        this.$store.subscribe((mutation, state) => {
+            if (mutation.type == "setCurrentFile") {
+                this.editor.setValue(state.currentFile.content)
+            }
+        })
     },
     methods: {
-        async loadProject(id) {
-            this.id = id
-            this.files = await getList(this.id);
-        },
         async loadFile(path) {
-            this.current_file = await getFile(this.id, path)
-            this.editor.setValue(this.current_file.content)
+            this.$store.dispatch('loadFile', path)
+                .then(_ => {
+                    this.editor.setValue(this.$store.getters.currentFile.content);
+                })
         },
         async newProject() {
-            const id = (await newProject()).id
+            await this.$store.dispatch('newProject')
+            const id = this.id;
             this.$router.push({
                 path: `/project/${id}`
             })
-            this.loadProject(id)
         },
         async save() {
-            saveFile(this.id, this.current_file.path, this.current_file.content)
+            this.$store.dispatch('save', this.editor.getValue())
         },
         async compile() {
-            let result = await compileRequest(this.id, this.current_file.path)
-            this.stdout = result.stdout
-            this.stderr = result.stderr
-            this.pdf = result.pdf
+            this.$store.dispatch('compile')
         },
         async newFile() {
             let path = window.prompt("Path for new file")
             if (!path) {
                 return;
             }
-            saveFile(this.id, path, "");
-            getList(this.id)
-                .then(r => { this.files = r })
-            this.loadFile(path)
+            this.$store.dispatch('newFile', path);
         },
+    },
+    computed: {
+        ...mapState([
+            'id',
+            'state',
+            'pdf',
+            'stdout',
+            'stderr',
+            'fileTree',
+            'currentFile',
+        ])
     },
 })
 </script>

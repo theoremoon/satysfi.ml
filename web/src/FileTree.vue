@@ -20,7 +20,7 @@ export default Vue.extend({
     ],
     methods: {
         click(path) {
-            this.$emit('path-click', path)
+            this.$store.dispatch('loadFile', path)
         }
     },
 })
