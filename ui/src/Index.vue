@@ -65,6 +65,14 @@ export default Vue.extend({
                 enabled: false,
             },
         })
+        this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KEY_S, () => {
+            this.save();
+        })
+        this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            this.save();
+            this.compile();
+        })
+
         if (this.$route.params.hasOwnProperty('id')) {
             this.$store.dispatch('loadProject', this.$route.params.id)
         }
