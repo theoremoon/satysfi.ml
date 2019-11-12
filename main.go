@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -208,46 +207,7 @@ func main() {
 	e.Use(middleware.Logger())
 
 	// handlers
-	e.GET("/*", func(c echo.Context) error {
-		// set dummy response writer for serving files
-		res := c.Response()
-		writer := res.Writer
-		recorder := httptest.NewRecorder()
-		res.Writer = recorder
-
-		// serve statics
-		handler := echo.WrapHandler(http.FileServer(fs))
-		err := handler(c)
-		if err != nil {
-			return err
-		}
-
-		// restore writer and response index.html if 404
-		res.Writer = writer
-		if res.Status == http.StatusNotFound {
-			f, err := fs.Open("/index.html")
-			if err != nil {
-				log.Println(err)
-				return nil
-			}
-			content, err := ioutil.ReadAll(f)
-			if err != nil {
-				return err
-			}
-			return c.HTMLBlob(http.StatusOK, content)
-
-		} else {
-			for k, vs := range recorder.Result().Header {
-				for _, v := range vs {
-					writer.Header().Add(k, v)
-				}
-			}
-			writer.Write(recorder.Body.Bytes())
-		}
-
-		return nil
-	})
-
+	e.GET("/*", echo.WrapHandler(http.FileServer(fs)))
 	// get project file tree
 	e.GET("/api/:id/list", func(c echo.Context) error {
 		id := c.Param("id")
