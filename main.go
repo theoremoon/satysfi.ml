@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
@@ -178,9 +180,9 @@ func verifyID(id string) bool {
 
 func main() {
 	// load environment variable and config
-	port := os.Getenv("PORT")
-	if port == "" {
-		log.Fatal("You MUST specify environment variable: PORT")
+	host := os.Getenv("HOST")
+	if host == "" {
+		log.Fatal("You MUST specify environment variable: HOST")
 	}
 
 	config, err := ioutil.ReadFile("config.json")
@@ -340,6 +342,31 @@ func main() {
 		})
 	})
 
-	// run
-	e.Logger.Fatal(e.Start(":" + port))
+	if strings.HasPrefix(host, "unix:") {
+		host = strings.TrimPrefix(host, "unix:")
+		listener, err := net.Listen("unix", host)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer listener.Close()
+
+		e.Listener = listener
+
+		sig_ch := make(chan os.Signal)
+		err_ch := make(chan error)
+		signal.Notify(sig_ch, os.Interrupt)
+
+		go func() {
+			err_ch <- e.Start("")
+		}()
+
+		select {
+		case err := <-err_ch:
+			e.Logger.Fatal(err)
+		case <-sig_ch:
+		}
+
+	} else {
+		e.Logger.Fatal(e.Start(host))
+	}
 }
