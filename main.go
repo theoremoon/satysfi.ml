@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -179,10 +180,12 @@ func verifyID(id string) bool {
 }
 
 func main() {
+	host := flag.String("host", "", "")
+	flag.Parse()
+
 	// load environment variable and config
-	host := os.Getenv("HOST")
-	if host == "" {
-		log.Fatal("You MUST specify environment variable: HOST")
+	if *host == "" {
+		log.Fatal("-host is required (example -host :8888)")
 	}
 
 	config, err := ioutil.ReadFile("config.json")
@@ -342,9 +345,9 @@ func main() {
 		})
 	})
 
-	if strings.HasPrefix(host, "unix:") {
-		host = strings.TrimPrefix(host, "unix:")
-		listener, err := net.Listen("unix", host)
+	if strings.HasPrefix(*host, "unix:") {
+		*host = strings.TrimPrefix(*host, "unix:")
+		listener, err := net.Listen("unix", *host)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -367,6 +370,6 @@ func main() {
 		}
 
 	} else {
-		e.Logger.Fatal(e.Start(host))
+		e.Logger.Fatal(e.Start(*host))
 	}
 }
