@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/labstack/echo"
@@ -358,6 +359,7 @@ func main() {
 		sig_ch := make(chan os.Signal)
 		err_ch := make(chan error)
 		signal.Notify(sig_ch, os.Interrupt)
+		signal.Notify(sig_ch, syscall.SIGTERM)
 
 		go func() {
 			err_ch <- e.Start("")
