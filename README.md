@@ -31,7 +31,7 @@
 (without reflex)
 1. make setup
 2. make build
-3. HOST=:8888 make run
+3. make run
 4. access `http://localhost:8888`
 
 **NOTE**: This tool uses a Docker image for PDF generation. When starting the application local environment, execute the following command before compiling the SATySFi document.

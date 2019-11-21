@@ -4,7 +4,7 @@ help:
 
 .PHONY: dev
 dev:
-	parallel --line-buffer bash -c ::: 'make watch-ui' 'reflex -g "dist/*" -s -- sh -c "sleep 5; make go && HOST=:8888 make run"'
+	parallel --line-buffer bash -c ::: 'make watch-ui' 'reflex -g "dist/*" -s -- sh -c "sleep 5; make go && make run -host :8888"'
 
 .PHONY: build
 build: ui go
