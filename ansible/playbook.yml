@@ -1,0 +1,99 @@
+---
+- hosts: server
+  become: true
+  vars:
+    server_name: "staysfi.ml"
+    proxy_addr: "http://unix:/tmp/satysfi.ml.sock"
+    proxy_listen: "unix:/tmp/satysfi.ml.sock"
+    working_user: "ubuntu"
+    target_directory: "/home/ubuntu/satysfi.ml"
+    bgproxy_version: "0.0.13"
+
+  tasks:
+    - name: install from apt
+      apt:
+        name: [nginx, python3-pip, git]
+        state: latest
+        update_cache: yes
+
+    - name: copy nginx config file
+      template:
+        src: nginx.conf
+        dest: /etc/nginx/sites-available/nginx.conf
+
+    - name: enable configuration
+      file:
+        src: /etc/nginx/sites-available/nginx.conf
+        dest: /etc/nginx/sites-enabled/default
+        state: link
+
+    - name: get bgproxy
+      unarchive:
+        remote_src: yes
+        src: https://github.com/theoremoon/bgproxy/releases/download/v{{ bgproxy_version }}/bgproxy_{{ bgproxy_version }}_Linux_x86_64.tar.gz
+        dest: /usr/bin/
+        mode: 0755
+
+    - name: create docker group
+      group:
+        name: docker
+        system: yes
+
+    - name: make user in docker group
+      user:
+        name: ubuntu
+        groups: sudo, docker
+        append: yes
+    - meta: reset_connection
+
+    - name: install docker
+      snap:
+        name: docker
+      notify: start docker
+
+    - name: install docker-py
+      pip:
+        name: docker
+        executable: pip3
+
+    - name: get satysfi image
+      docker_image:
+        name: theoldmoon0602/satysfi
+        source: pull
+
+    - name: get the satysfi.ml repository
+      git:
+        repo: https://github.com/theoremoon/satysfi.ml
+        dest: "{{ target_directory }}"
+
+    - name: set working directory owner
+      file:
+        path: "{{ target_directory }}"
+        owner: "{{ working_user }}"
+        group: "{{ working_user }}"
+        recurse: yes
+
+    - name: add bgproxy as daemon
+      template:
+        src: bgproxy.service
+        dest: /etc/systemd/system/bgproxy.service
+      notify: start bgproxy
+
+    - name: start nginx
+      systemd:
+        name: nginx
+        state: restarted
+
+  handlers:
+    - name: start docker
+      systemd:
+        name: snap.docker.dockerd
+        state: restarted
+        daemon_reload: yes
+        enabled: yes
+
+    - name: start bgproxy
+      systemd:
+        name: bgproxy.service
+        state: restarted
+        daemon_reload: yes

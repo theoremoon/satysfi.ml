@@ -1,0 +1,11 @@
+[Unit]
+Description=BGProxy service for hosting satysfi.ml
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/bgproxy -addr {{ proxy_listen }} -blue unix:/tmp/unexists.sock -stop :
+User=ubuntu
+Group=ubuntu
+
+[Install]
+WantedBy=multi-user.target
